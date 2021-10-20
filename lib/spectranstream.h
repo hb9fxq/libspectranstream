@@ -33,6 +33,7 @@ SOFTWARE.
 #include <fstream>
 #include <iostream>
 #include <mutex>
+#include <atomic>
 
 #include <vector>
 
@@ -54,9 +55,9 @@ public:
     spectran_stream(STREAMER_TYPE steramerType, const std::string& endpoint);
     ~spectran_stream();
 
-    void GetSamples(int numOfSampels, std::complex<float> *buf);
+    int GetSamples(int numOfSampels, std::complex<float> *buf);
     void StartStreamingThread();
-    void UpdateDemodulator(long center_frequency, long center_offset, long samp_rate);
+    void UpdateDemodulator(float center_frequency, float center_offset, float samp_rate);
 
 private:
     std::string m_endpoint;
@@ -67,6 +68,7 @@ private:
     void notify_sample_data_chunk_ready();
     int pull_samples_from_write_buffer(char *buffer, int capacity);
 
+    void put_remoteconfig(std::string const &json);
 
     unsigned char *m_buffer;
     int m_buffer_offset = 0;
