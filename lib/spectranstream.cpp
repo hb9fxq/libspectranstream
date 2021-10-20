@@ -110,8 +110,8 @@ int spectran_stream::pull_samples_from_write_buffer(char *buffer, int capacity)
 
             m_queueMutex.lock();
 
-            //TODO: (WTF) We have to maintain a local buffer with copies, because GetSamples() and RTSA streaming is
-            //      async.... maybe a smart person will find a smarter way
+            //TODO: We have to maintain a local buffer with copies, because GetSamples() and RTSA streaming is
+            //      async.... will have to be replaced with a better ring buffer like structure... 
            
             //m_sample_vector.reserve(capacity);
             std::copy(samples, samples + m_samples_in_next_buffer, std::back_inserter(m_sample_vector));
