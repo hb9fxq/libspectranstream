@@ -24,11 +24,27 @@ SOFTWARE.
 
 #include "spectranstream.h"
 
-spectran_stream::spectran_stream(STREAMER_TYPE steramerType, const std::string &endpoint)
-    : m_endpoint(endpoint), m_streamertype(steramerType)
+spectran_stream::spectran_stream(STREAMER_TYPE streamerType, const std::string &endpoint)
+    : m_endpoint(endpoint), m_streamertype(streamerType)
 {
     m_buffer = new unsigned char[1];
     buff = new ArbitraryLengthCircularBuffer(8 * 1024 * 1024); // 8 MB Ringbuffer
+
+    switch (streamerType)
+    {
+    case STREAMER_TYPE::QUEUED_CF32:
+        m_atomic_sample_dtype_size = sizeof(float);
+        m_streaming_endpoint_url = "/stream?format=float32";
+        break;
+    case STREAMER_TYPE::QUEUED_INT16:
+        m_atomic_sample_dtype_size = sizeof(unsigned short);
+        m_streaming_endpoint_url = "/stream?format=int16";
+        break;
+    
+    default:
+        break;
+    }
+
 }
 
 spectran_stream::~spectran_stream()
@@ -42,7 +58,7 @@ void spectran_stream::notify_json_preamble_ready(int length)
     std::string s(m_jsonData, m_jsonData + length);
     m_json_preamble_doc.Parse(s.c_str());
     m_samples_in_next_buffer = m_json_preamble_doc["samples"].GetInt(); //contains number of complex samples in package
-    m_remaining_sample_data_bytes = m_samples_in_next_buffer * 2 * sizeof(float);
+    m_remaining_sample_data_bytes = m_samples_in_next_buffer * 2 * m_atomic_sample_dtype_size;
 
     // clear previous buffer
     if (m_buffer)
@@ -51,19 +67,19 @@ void spectran_stream::notify_json_preamble_ready(int length)
     }
 
     // make room for following sample data.
-    m_buffer = new unsigned char[m_samples_in_next_buffer * 2 * sizeof(float)];
+    m_buffer = new unsigned char[m_samples_in_next_buffer * 2 * m_atomic_sample_dtype_size];
 }
 
-int spectran_stream::GetSamples(int numOfSampels, std::complex<float> *buf)
+int spectran_stream::GetSamples(int numOfSampels, unsigned char *buf)
 {
     m_pending_samples_read = numOfSampels;
     std::unique_lock<std::mutex> lock(m_queueMutex);
 
     // wait till requested number of samples can be provided
     m_queue_cond.wait(lock, [this]()
-                      { return buff->size()>this->m_pending_samples_read*2*sizeof(float); });
+                      { return buff->size()>this->m_pending_samples_read*2*m_atomic_sample_dtype_size; });
 
-    buff->read(reinterpret_cast<unsigned char *>(buf), m_pending_samples_read * 2 * sizeof(float));
+    buff->read(buf, m_pending_samples_read * 2 * m_atomic_sample_dtype_size);
     return numOfSampels;
 }
 
@@ -91,13 +107,14 @@ int spectran_stream::pull_samples_from_write_buffer(char *buffer, int capacity)
         if (m_remaining_sample_data_bytes == 0) // captured a complete buffer
         {
             m_buffer_offset = 0;
-            auto *samples = reinterpret_cast<std::complex<float> *>(m_buffer);
+            
+        
 
             m_queueMutex.lock();
-            buff->write(m_buffer, m_samples_in_next_buffer * 2 * sizeof(float));
+            buff->write(m_buffer, m_samples_in_next_buffer * 2 * m_atomic_sample_dtype_size);
             m_queueMutex.unlock();
 
-            if (m_pending_samples_read > 0 && buff->size() / (2 * sizeof(float)) >= m_pending_samples_read)
+            if (m_pending_samples_read > 0 && buff->size() / (2 * m_atomic_sample_dtype_size) >= m_pending_samples_read)
             {
                 m_queue_cond.notify_one();
             }
@@ -174,7 +191,7 @@ void spectran_stream::StartStreamingThread()
          throw std::runtime_error("Could not probe spectran HTTP Server " + m_endpoint);
     }
 
-    std::thread(&spectran_stream::init_and_start_http_client, this, "http://" + m_endpoint + "/stream?format=float32").detach();
+    std::thread(&spectran_stream::init_and_start_http_client, this, "http://" + m_endpoint + m_streaming_endpoint_url).detach();
 }
 
 size_t write_data_null_sink(void *buffer, size_t size, size_t nmemb, void *userp)

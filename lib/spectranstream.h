@@ -41,7 +41,7 @@ SOFTWARE.
 #include <chrono>
 #include <condition_variable>
 
-#include <ArbitraryLengthCircularBuffer.h>
+#include "ArbitraryLengthCircularBuffer.h"
 
 #include <string.h>
 
@@ -51,13 +51,14 @@ public:
     enum STREAMER_TYPE
     {
         RAW_STDOUT_CF32,
-        QUEUED_CF32
+        QUEUED_CF32,
+        QUEUED_INT16
     };
 
     spectran_stream(STREAMER_TYPE steramerType, const std::string& endpoint);
     ~spectran_stream();
 
-    int GetSamples(int numOfSampels, std::complex<float> *buf);
+    int GetSamples(int numOfSampels, unsigned char *buf);
     void StartStreamingThread();
     void UpdateDemodulator(float center_frequency, float center_offset, float samp_rate);
     bool Probe();
@@ -77,6 +78,8 @@ private:
     unsigned char *m_buffer;
     int m_buffer_offset = 0;
     int m_samples_in_next_buffer = 0;
+    int m_atomic_sample_dtype_size = 0;
+    std::string m_streaming_endpoint_url = "";
 
     unsigned char *m_jsonData;
  
