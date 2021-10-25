@@ -40,11 +40,10 @@ spectran_stream::spectran_stream(STREAMER_TYPE streamerType, const std::string &
         m_atomic_sample_dtype_size = sizeof(unsigned short);
         m_streaming_endpoint_url = "/stream?format=int16";
         break;
-    
+
     default:
         break;
     }
-
 }
 
 spectran_stream::~spectran_stream()
@@ -77,7 +76,7 @@ int spectran_stream::GetSamples(int numOfSampels, unsigned char *buf)
 
     // wait till requested number of samples can be provided
     m_queue_cond.wait(lock, [this]()
-                      { return buff->size()>this->m_pending_samples_read*2*m_atomic_sample_dtype_size; });
+                      { return buff->size() > this->m_pending_samples_read * 2 * m_atomic_sample_dtype_size; });
 
     buff->read(buf, m_pending_samples_read * 2 * m_atomic_sample_dtype_size);
     return numOfSampels;
@@ -107,8 +106,6 @@ int spectran_stream::pull_samples_from_write_buffer(char *buffer, int capacity)
         if (m_remaining_sample_data_bytes == 0) // captured a complete buffer
         {
             m_buffer_offset = 0;
-            
-        
 
             m_queueMutex.lock();
             buff->write(m_buffer, m_samples_in_next_buffer * 2 * m_atomic_sample_dtype_size);
@@ -138,7 +135,7 @@ size_t spectran_stream::http_data_write_func(char *buffer, size_t size, size_t n
     int readBufferoffset = realsize - remainingBytes;
     int readBufferTake = 0;
 
-    // we asume, a json preamble fits into a single http response chunk and is not splitted into two chunks...    
+    // we asume, a json preamble fits into a single http response chunk and is not splitted into two chunks...
     for (int i = readBufferoffset; i < realsize; i++)
     {
         remainingBytes--;
@@ -147,11 +144,11 @@ size_t spectran_stream::http_data_write_func(char *buffer, size_t size, size_t n
         if (buffer[i] == '\x1e')
         {
 
-            parent->m_jsonData = new unsigned char[readBufferTake]; 
+            parent->m_jsonData = new unsigned char[readBufferTake];
             memcpy(&parent->m_jsonData[0], &buffer[readBufferoffset], readBufferTake);
 
             parent->notify_json_preamble_ready(readBufferTake);
-            delete [] parent->m_jsonData;
+            delete[] parent->m_jsonData;
             break;
         }
         else
@@ -186,9 +183,9 @@ void spectran_stream::init_and_start_http_client(std::string const &endpoint)
 
 void spectran_stream::StartStreamingThread()
 {
-
-    if(!Probe()){
-         throw std::runtime_error("Could not probe spectran HTTP Server " + m_endpoint);
+    if (!Probe())
+    {
+        throw std::runtime_error("Could not probe spectran HTTP Server " + m_endpoint);
     }
 
     std::thread(&spectran_stream::init_and_start_http_client, this, "http://" + m_endpoint + m_streaming_endpoint_url).detach();
@@ -217,20 +214,23 @@ void spectran_stream::put_remoteconfig(std::string const &json)
     }
 }
 
-size_t curlStringWriter(void* ptr, size_t size, size_t nmemb, std::string* data) {
-    data->append((char*)ptr, size * nmemb);
+size_t curlStringWriter(void *ptr, size_t size, size_t nmemb, std::string *data)
+{
+    data->append((char *)ptr, size * nmemb);
     return size * nmemb;
 }
 
-bool spectran_stream::Probe(){
- 
-     const std::string infoURL = "http://" +  m_endpoint + "/info";
+bool spectran_stream::Probe()
+{
+
+    const std::string infoURL = "http://" + m_endpoint + "/info";
 
     std::string response_string;
     std::string header_string;
 
     auto curl = curl_easy_init();
-    if (curl) {
+    if (curl)
+    {
         curl_easy_setopt(curl, CURLOPT_URL, infoURL.c_str());
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlStringWriter);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
