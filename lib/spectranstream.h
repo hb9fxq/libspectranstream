@@ -41,6 +41,8 @@ SOFTWARE.
 #include <chrono>
 #include <condition_variable>
 
+#include <ArbitraryLengthCircularBuffer.h>
+
 #include <string.h>
 
 class spectran_stream
@@ -58,14 +60,16 @@ public:
     int GetSamples(int numOfSampels, std::complex<float> *buf);
     void StartStreamingThread();
     void UpdateDemodulator(float center_frequency, float center_offset, float samp_rate);
+    bool Probe();
 
 private:
     std::string m_endpoint;
+
+    ArbitraryLengthCircularBuffer *buff;
     
     void init_and_start_http_client(std::string const &endpoint);
     static size_t http_data_write_func(char *buffer, size_t size, size_t nmemb, void *userp);
-    void notify_json_preamble_ready();
-    void notify_sample_data_chunk_ready();
+    void notify_json_preamble_ready(int length);
     int pull_samples_from_write_buffer(char *buffer, int capacity);
 
     void put_remoteconfig(std::string const &json);
@@ -74,9 +78,8 @@ private:
     int m_buffer_offset = 0;
     int m_samples_in_next_buffer = 0;
 
-    std::vector<unsigned char> m_jsonData;
-    std::vector<std::complex<float>> m_sample_vector;
-
+    unsigned char *m_jsonData;
+ 
     int m_remaining_sample_data_bytes = 0;
     int m_pending_samples_read = 0;
 

@@ -28,6 +28,7 @@ spectran_stream::spectran_stream(STREAMER_TYPE steramerType, const std::string &
     : m_endpoint(endpoint), m_streamertype(steramerType)
 {
     m_buffer = new unsigned char[1];
+    buff = new ArbitraryLengthCircularBuffer(8 * 1024 * 1024); // 8 MB Ringbuffer
 }
 
 spectran_stream::~spectran_stream()
@@ -36,9 +37,9 @@ spectran_stream::~spectran_stream()
     curl_easy_cleanup(m_curl);
 }
 
-void spectran_stream::notify_json_preamble_ready()
+void spectran_stream::notify_json_preamble_ready(int length)
 {
-    std::string s(m_jsonData.begin(), m_jsonData.end());
+    std::string s(m_jsonData, m_jsonData + length);
     m_json_preamble_doc.Parse(s.c_str());
     m_samples_in_next_buffer = m_json_preamble_doc["samples"].GetInt(); //contains number of complex samples in package
     m_remaining_sample_data_bytes = m_samples_in_next_buffer * 2 * sizeof(float);
@@ -53,32 +54,16 @@ void spectran_stream::notify_json_preamble_ready()
     m_buffer = new unsigned char[m_samples_in_next_buffer * 2 * sizeof(float)];
 }
 
-void spectran_stream::notify_sample_data_chunk_ready()
-{
-}
-
 int spectran_stream::GetSamples(int numOfSampels, std::complex<float> *buf)
 {
     m_pending_samples_read = numOfSampels;
     std::unique_lock<std::mutex> lock(m_queueMutex);
 
-    //clamping to sample buffer size
-    //int fetchSize = numOfSampels;
-    //if(m_sample_vector.size()<=numOfSampels){
-    //    fetchSize = m_sample_vector.size();
-    //}
-
     // wait till requested number of samples can be provided
     m_queue_cond.wait(lock, [this]()
-                      { return this->m_sample_vector.size() > this->m_pending_samples_read * 2; });
+                      { return buff->size()>this->m_pending_samples_read*2*sizeof(float); });
 
-    lock.unlock(); // since we start from position0 this is not a critical situation, till we'll erase them...
-    std::memcpy(buf, &m_sample_vector[0], numOfSampels * 2 * sizeof(float));
-
-    lock.lock(); // remove consumed samples from vector
-    m_sample_vector.erase(m_sample_vector.begin(), m_sample_vector.begin() + numOfSampels);
-    lock.unlock();
-
+    buff->read(reinterpret_cast<unsigned char *>(buf), m_pending_samples_read * 2 * sizeof(float));
     return numOfSampels;
 }
 
@@ -109,16 +94,10 @@ int spectran_stream::pull_samples_from_write_buffer(char *buffer, int capacity)
             auto *samples = reinterpret_cast<std::complex<float> *>(m_buffer);
 
             m_queueMutex.lock();
-
-            //TODO: We have to maintain a local buffer with copies, because GetSamples() and RTSA streaming is
-            //      async.... will have to be replaced with a better ring buffer like structure... 
-           
-            //m_sample_vector.reserve(capacity);
-            std::copy(samples, samples + m_samples_in_next_buffer, std::back_inserter(m_sample_vector));
-            
+            buff->write(m_buffer, m_samples_in_next_buffer * 2 * sizeof(float));
             m_queueMutex.unlock();
 
-            if (m_pending_samples_read > 0 && m_sample_vector.size() >= m_pending_samples_read * 2)
+            if (m_pending_samples_read > 0 && buff->size() / (2 * sizeof(float)) >= m_pending_samples_read)
             {
                 m_queue_cond.notify_one();
             }
@@ -141,21 +120,25 @@ size_t spectran_stream::http_data_write_func(char *buffer, size_t size, size_t n
     //byte by byte mode to isolate json preamble.
     int readBufferoffset = realsize - remainingBytes;
     int readBufferTake = 0;
+
+    // we asume, a json preamble fits into a single http response chunk and is not splitted into two chunks...    
     for (int i = readBufferoffset; i < realsize; i++)
     {
         remainingBytes--;
 
-        //captured a full preamble!
+        // captured a full preamble!
         if (buffer[i] == '\x1e')
         {
-            std::copy(buffer + readBufferoffset, buffer + readBufferoffset + readBufferTake, std::back_inserter(parent->m_jsonData));
-            parent->notify_json_preamble_ready();
-            parent->m_jsonData.clear();
+
+            parent->m_jsonData = new unsigned char[readBufferTake]; 
+            memcpy(&parent->m_jsonData[0], &buffer[readBufferoffset], readBufferTake);
+
+            parent->notify_json_preamble_ready(readBufferTake);
+            delete [] parent->m_jsonData;
             break;
         }
         else
         {
-            //parent->m_jsonData.push_back(buffer[i]);
             readBufferTake++;
         }
     }
@@ -171,7 +154,6 @@ size_t spectran_stream::http_data_write_func(char *buffer, size_t size, size_t n
 
 void spectran_stream::init_and_start_http_client(std::string const &endpoint)
 {
-
     m_curl = curl_easy_init();
     if (m_curl)
     {
@@ -179,9 +161,7 @@ void spectran_stream::init_and_start_http_client(std::string const &endpoint)
         curl_easy_setopt(m_curl, CURLOPT_WRITEFUNCTION, spectran_stream::http_data_write_func);
         curl_easy_setopt(m_curl, CURLOPT_HTTP_CONTENT_DECODING, 0L);
         curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, static_cast<void *>(this));
-
         curl_easy_perform(m_curl);
-
         curl_easy_cleanup(m_curl);
     }
     return;
@@ -189,6 +169,11 @@ void spectran_stream::init_and_start_http_client(std::string const &endpoint)
 
 void spectran_stream::StartStreamingThread()
 {
+
+    if(!Probe()){
+         throw std::runtime_error("Could not probe spectran HTTP Server " + m_endpoint);
+    }
+
     std::thread(&spectran_stream::init_and_start_http_client, this, "http://" + m_endpoint + "/stream?format=float32").detach();
 }
 
@@ -197,9 +182,8 @@ size_t write_data_null_sink(void *buffer, size_t size, size_t nmemb, void *userp
     return size * nmemb;
 }
 
-
-void spectran_stream::put_remoteconfig(std::string const &json){
-    
+void spectran_stream::put_remoteconfig(std::string const &json)
+{
     const std::string config_endpoint("http://" + m_endpoint + "/remoteconfig");
 
     auto pcurl = curl_easy_init();
@@ -214,6 +198,32 @@ void spectran_stream::put_remoteconfig(std::string const &json){
         curl_easy_perform(pcurl);
         curl_easy_cleanup(pcurl);
     }
+}
+
+size_t curlStringWriter(void* ptr, size_t size, size_t nmemb, std::string* data) {
+    data->append((char*)ptr, size * nmemb);
+    return size * nmemb;
+}
+
+bool spectran_stream::Probe(){
+ 
+     const std::string infoURL = "http://" +  m_endpoint + "/info";
+
+    std::string response_string;
+    std::string header_string;
+
+    auto curl = curl_easy_init();
+    if (curl) {
+        curl_easy_setopt(curl, CURLOPT_URL, infoURL.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlStringWriter);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+        curl_easy_setopt(curl, CURLOPT_HEADERDATA, &header_string);
+        curl_easy_perform(curl);
+        curl_easy_cleanup(curl);
+        curl = NULL;
+    }
+
+    return response_string.find("HTTPServer") != std::string::npos; //parse response and impl. better probe()
 }
 
 void spectran_stream::UpdateDemodulator(float center_frequency, float center_offset, float samp_rate)
