@@ -37,8 +37,8 @@ spectran_stream::spectran_stream(STREAMER_TYPE streamerType, const std::string &
         m_streaming_endpoint_url = "/stream?format=float32";
         break;
     case STREAMER_TYPE::QUEUED_INT16:
-        m_atomic_sample_dtype_size = sizeof(unsigned short);
-        m_streaming_endpoint_url = "/stream?format=int16";
+        m_atomic_sample_dtype_size = sizeof(short);
+        m_streaming_endpoint_url = "/stream?format=int16&scale=32767";
         break;
 
     default:

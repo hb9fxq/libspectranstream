@@ -9,7 +9,7 @@ include(GNUInstallDirs)
 find_package(RapidJSON REQUIRED)
 
 
-add_library(spectranstream SHARED spectranstream.cpp)
+add_library(spectranstream SHARED spectranstream.cpp ArbitraryLengthCircularBuffer.cpp)
 
 set_target_properties(spectranstream PROPERTIES
     VERSION ${PROJECT_VERSION}
