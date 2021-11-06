@@ -41,9 +41,10 @@ SOFTWARE.
 #include <chrono>
 #include <condition_variable>
 
-#include "ArbitraryLengthCircularBuffer.h"
-
 #include <string.h>
+
+class ArbitraryLengthCircularBuffer;
+
 
 class spectran_stream
 {

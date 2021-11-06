@@ -24,6 +24,9 @@ SOFTWARE.
 
 #include "spectranstream.h"
 
+#include "ArbitraryLengthCircularBuffer.h"
+
+
 spectran_stream::spectran_stream(STREAMER_TYPE streamerType, const std::string &endpoint)
     : m_endpoint(endpoint), m_streamertype(streamerType)
 {

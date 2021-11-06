@@ -14,7 +14,7 @@ add_library(spectranstream SHARED spectranstream.cpp ArbitraryLengthCircularBuff
 set_target_properties(spectranstream PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION ${mLIB_VER}
-    PUBLIC_HEADER "spectranstream.h;ArbitraryLengthCircularBuffer.h")
+    PUBLIC_HEADER "spectranstream.h")
 
 target_include_directories(spectranstream PRIVATE .)
 
