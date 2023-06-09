@@ -8,7 +8,6 @@ include(GNUInstallDirs)
 
 find_package(RapidJSON REQUIRED)
 
-
 add_library(spectranstream SHARED spectranstream.cpp ArbitraryLengthCircularBuffer.cpp)
 
 set_target_properties(spectranstream PROPERTIES
@@ -16,14 +15,12 @@ set_target_properties(spectranstream PROPERTIES
     SOVERSION ${mLIB_VER}
     PUBLIC_HEADER "spectranstream.h")
 
-target_include_directories(spectranstream PRIVATE .)
+target_include_directories(spectranstream PUBLIC .)
 
-target_link_libraries(spectranstream ${RapidJSON} curl pthread)
+target_link_libraries(spectranstream PUBLIC ${RapidJSON} curl pthread)
 
 install(TARGETS spectranstream
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-
-
-    export(PACKAGE FooBar)
+export(PACKAGE spectranstream)

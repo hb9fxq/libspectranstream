@@ -11,5 +11,4 @@ include_directories(${spectranstream_SOURCE_DIR})
 
 target_link_libraries(spectrantransfer spectranstream)
 
-
 install(TARGETS spectrantransfer DESTINATION bin)

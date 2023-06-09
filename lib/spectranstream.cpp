@@ -206,8 +206,7 @@ void spectran_stream::put_remoteconfig(std::string const &json)
     auto pcurl = curl_easy_init();
     if (pcurl)
     {
-
-        //std::cout << req_spectran << "\n";
+        //std::cout << json << "\n";
         curl_easy_setopt(pcurl, CURLOPT_URL, config_endpoint.c_str());
         curl_easy_setopt(pcurl, CURLOPT_CUSTOMREQUEST, "PUT");
         curl_easy_setopt(pcurl, CURLOPT_POSTFIELDS, json.c_str());
@@ -246,18 +245,22 @@ bool spectran_stream::Probe()
     return response_string.find("HTTPServer") != std::string::npos; //parse response and impl. better probe()
 }
 
-void spectran_stream::UpdateDemodulator(float center_frequency, float center_offset, float samp_rate)
+void spectran_stream::UpdateDemodulator(std::string demod_block, std::string spectran_block, float center_frequency, float center_offset, float samp_rate)
 {
-    //TODO: figure out how to updated config in one run....
     std::string req_iq = m_config_req_string_iqdemod;
     req_iq.replace(req_iq.find("$0"), 2, std::to_string(m_config_req_counter++));
     req_iq.replace(req_iq.find("$1"), 2, std::to_string((long)center_frequency));
     req_iq.replace(req_iq.find("$2"), 2, std::to_string((long)samp_rate));
     req_iq.replace(req_iq.find("$3"), 2, std::to_string((long)samp_rate));
+    req_iq.replace(req_iq.find("$4"), 2, demod_block);
     put_remoteconfig(req_iq);
 
-    std::string req_spectran = m_config_req_string_spectran;
-    req_spectran.replace(req_spectran.find("$0"), 2, std::to_string(m_config_req_counter++));
-    req_spectran.replace(req_spectran.find("$1"), 2, std::to_string((long)(center_frequency + center_offset)));
-    put_remoteconfig(req_spectran);
+    if(!spectran_block.empty())
+    {
+        std::string req_spectran = m_config_req_string_spectran;
+        req_spectran.replace(req_spectran.find("$0"), 2, std::to_string(m_config_req_counter++));
+        req_spectran.replace(req_spectran.find("$1"), 2, std::to_string((long)(center_frequency + center_offset)));
+        req_spectran.replace(req_spectran.find("$2"), 2, spectran_block);
+        put_remoteconfig(req_spectran);
+    }
 }

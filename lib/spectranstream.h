@@ -61,7 +61,7 @@ public:
 
     int GetSamples(int numOfSampels, unsigned char *buf);
     void StartStreamingThread();
-    void UpdateDemodulator(float center_frequency, float center_offset, float samp_rate);
+    void UpdateDemodulator(std::string demod_block, std::string spectran_block, float center_frequency, float center_offset, float samp_rate);
     bool Probe();
 
 private:
@@ -100,63 +100,64 @@ private:
     //TODO quick and dirty json templates to update via /remoteconifg
     int m_config_req_counter = 0;
     
-    const std::string m_config_req_string_iqdemod = "{\n"
-"   \"request\": $0,\n"
-"   \"receiverName\": \"Block_IQDemodulator_0\",\n"
-"   \"config\": {\n"
-"      \"items\": [\n"
-"         {\n"
-"            \"receiverName\": \"Block_IQDemodulator_0\",\n"
-"            \"type\": \"group\",\n"
-"            \"name\": \"main\",\n"
-"            \"items\": [\n"
-"               {\n"
-"                  \"type\": \"float\",\n"
-"                  \"name\": \"centerfreq\",\n"
-"                  \"label\": \"Center Frequency\",\n"
-"                  \"value\": $1\n"
-"               },\n"
-"               {\n"
-"                  \"type\": \"float\",\n"
-"                  \"name\": \"samplerate\",\n"
-"                  \"label\": \"Sample Rate\",\n"
-"                  \"value\": $2\n"
-"               },\n"
-"               {\n"
-"                  \"type\": \"float\",\n"
-"                  \"name\": \"spanfreq\",\n"
-"                  \"label\": \"Span Frequency\",\n"
-"                  \"value\": $3\n"
-"               }\n"
-"            ]\n"
-"         }\n"
-"      ]\n"
-"   }\n"
-"}";
+
+    const std::string m_config_req_string_iqdemod = R"(
+{
+  "request": $0,
+  "receiverName": "$4",
+  "config": {
+    "type": "group",
+    "items": [
+      {
+        "type": "group",
+        "name": "main",
+        "items": [
+          {
+            "type": "float",
+            "name": "centerfreq",
+            "value": $1
+          },
+          {
+            "type": "float",
+            "name": "samplerate",
+            "value": $2
+          },
+          {
+            "type": "float",
+            "name": "spanfreq",
+            "value": $3
+          }
+        ]
+      }
+    ]
+  }
+})";
 
 
-  const std::string m_config_req_string_spectran = "{\n"
-"    \"request\": $0,\n"
-"    \"receiverName\": \"Block_Spectran_V6B_0\",\n"
-"    \"config\": {\n"
-"       \"items\": [\n"
-"          {\n"
-"             \"receiverName\": \"Block_Spectran_V6B_0\",\n"
-"             \"type\": \"group\",\n"
-"             \"name\": \"main\",\n"
-"             \"items\": [\n"
-"                {\n"
-"                   \"type\": \"float\",\n"
-"                   \"name\": \"centerfreq\",\n"
-"                   \"label\": \"Center Frequency\",\n"
-"                   \"value\": $1\n"
-"                }\n"
-"             ]\n"
-"          }\n"
-"       ]\n"
-"    }\n"
-" }";
+const std::string m_config_req_string_spectran = R"(
+{
+  "request": $0,
+  "receiverName": "$2",
+  "config": {
+    "type": "group",
+    "items": [
+      {
+        "type": "group",
+        "name": "main",
+        "items": [
+          {
+            "type": "float",
+            "name": "centerfreq",
+            "value": $1
+          }
+        ]
+      }
+    ]
+  }
+})";
 
 };
+
+
 
 #endif

@@ -12,11 +12,11 @@ int main()
 {
 
    
-    spectran_stream streamer(spectran_stream::STREAMER_TYPE::QUEUED_CF32,"192.168.178.51:54664");
+    spectran_stream streamer(spectran_stream::STREAMER_TYPE::QUEUED_CF32,"127.0.0.1:54665");
 
     int readsize = 16000;
     unsigned char appBuffer[readsize*2*sizeof(float)];
-    streamer.UpdateDemodulator(101e6,-4e6, 14e6);
+    streamer.UpdateDemodulator("Block_IQDemodulator_1", "Block_Spectran_V6B_1", 103e6,-0e6, 3e6);
     streamer.StartStreamingThread();
     //std::ofstream out("/home/f102/debug2.iq", std::ios::out | std::ios::binary);
 

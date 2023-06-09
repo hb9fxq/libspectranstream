@@ -1,0 +1,57 @@
+PUT http://localhost:54665/remoteconfig HTTP/1.1
+
+{
+  "request": 10,
+  "receiverName": "Block_IQDemodulator_1",
+  "config": {
+    "type": "group",
+    "items": [
+      {
+        "type": "group",
+        "name": "main",
+        "items": [
+          {
+            "type": "float",
+            "name": "centerfreq",
+            "value": 938000000
+          },
+          {
+            "type": "float",
+            "name": "samplerate",
+            "value": 2000000
+          },
+          {
+            "type": "float",
+            "name": "spanfreq",
+            "value": 2000000
+          }
+        ]
+      }
+    ]
+  }
+}
+
+########################
+
+PUT http://localhost:54665/remoteconfig HTTP/1.1
+
+{
+  "request": 11,
+  "receiverName": "Block_Spectran_V6B_1",
+  "config": {
+    "type": "group",
+    "items": [
+      {
+        "type": "group",
+        "name": "main",
+        "items": [
+          {
+            "type": "float",
+            "name": "centerfreq",
+            "value": 103000000
+          }
+        ]
+      }
+    ]
+  }
+}
