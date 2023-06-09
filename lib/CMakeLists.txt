@@ -15,12 +15,31 @@ set_target_properties(spectranstream PROPERTIES
     SOVERSION ${mLIB_VER}
     PUBLIC_HEADER "spectranstream.h")
 
-target_include_directories(spectranstream PUBLIC .)
+target_include_directories(spectranstream PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
 
 target_link_libraries(spectranstream PUBLIC ${RapidJSON} curl pthread)
 
-install(TARGETS spectranstream
+install(TARGETS spectranstream EXPORT spectranstreamTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-export(PACKAGE spectranstream)
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/spectranstreamConfigVersion.cmake"
+    VERSION ${mLIB_VER}
+    COMPATIBILITY AnyNewerVersion)
+
+configure_file(spectranstreamConfig.cmake.in spectranstreamConfig.cmake @ONLY)
+
+install(FILES 
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
+
+install(EXPORT spectranstreamTargets
+    FILE spectranstreamTargets.cmake
+    NAMESPACE spectranstream::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
